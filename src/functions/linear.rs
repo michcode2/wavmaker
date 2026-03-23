@@ -18,7 +18,7 @@ impl Function for Linear {
             if time < start {
                 return 0.0;
             }
-            time = start - time;
+            time = time - start;
         }
 
         return self.gradient * time + self.offset;
