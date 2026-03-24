@@ -6,6 +6,7 @@ pub struct Fade {
     tau: f64,
     hit_times: Vec<f64>,
     start_value: f64,
+    offset: f64,
 }
 
 impl Function for Fade {
@@ -20,7 +21,7 @@ impl Function for Fade {
 
         let time_since_hit = time - self.hit_times[i];
 
-        return self.start_value * f64::consts::E.powf(-self.tau * time_since_hit);
+        return self.start_value * f64::consts::E.powf(-self.tau * time_since_hit) + self.offset;
     }
 }
 
@@ -30,6 +31,15 @@ impl Fade {
             tau,
             hit_times,
             start_value,
+            offset: 0.0,
+        }
+    }
+    pub fn new_offset(tau: f64, hit_times: Vec<f64>, start_value: f64, offset: f64) -> Fade {
+        Fade {
+            tau,
+            hit_times,
+            start_value: start_value - offset,
+            offset,
         }
     }
 }

@@ -10,8 +10,8 @@ use std::{f64, io::Write};
 mod functions;
 
 fn main() {
-    let duration = 60;
-    let per_sec = 4400;
+    let duration = 30;
+    let per_sec = 4410;
 
     let data = WavFile {
         samples_per_sec: per_sec,
@@ -22,23 +22,60 @@ fn main() {
     let mut bytes = data.create_header();
 
     let harmonic_frequency =
-        |fundimental: f64, harmonic_number: u8| 2.01 * fundimental * (harmonic_number as f64);
+        |fundimental: f64, harmonic_number: u8| harmonic_number as f64 * fundimental;
 
-    let harmonic_volume = |harmonic_number: u8| (-(harmonic_number as f64)).exp();
+    let harmonic_volume = |harmonic_number: u8| {
+        let basic = (-0.8 * (harmonic_number as f64)).exp();
+        basic
+    };
 
     let note = Harmonic::new(
-        Fade::new(0.5, vec![0.5], 440.0),
-        //Fade::new(2.0, vec![0.4, 0.5], 1.0),
-        Constant::new(0.5),
+        Constant::new(50.0),
+        Fade::new(0.2, vec![0.0], 0.0),
         harmonic_frequency,
         harmonic_volume,
-        50,
+        5,
     );
 
+    let mut times: Vec<Vec<f64>> = vec![
+        vec![3000.0],                                                     //A
+        vec![3000.0],                                                     //A#
+        vec![3000.0],                                                     //B
+        vec![1.5, 9.5, 14.5],                                             //C
+        vec![3000.0],                                                     //C#
+        vec![1.0, 2.0, 4.5, 5.0, 5.5, 9.0, 10.0, 12.5, 13.0, 14.0],       //D
+        vec![3000.0],                                                     //D#
+        vec![0.5, 2.5, 3.0, 3.5, 6.5, 8.5, 10.5, 11.0, 11.5, 12.0, 13.5], //E
+        vec![3000.0],                                                     //F
+        vec![3000.0],                                                     //F#
+        vec![7.0, 7.5],                                                   // G
+        vec![3000.0],
+        vec![3000.0],
+    ];
+
+    let mut frequencies = (0..=12)
+        .collect::<Vec<usize>>()
+        .into_iter()
+        .map(|x| {
+            let freq = 440.0 * 2.0_f64.powf(x as f64 / 12.0);
+            Harmonic::new(
+                Constant::new(freq),
+                Fade::new(2.0, times[x].clone(), 0.2),
+                harmonic_frequency,
+                harmonic_volume,
+                5,
+            )
+        })
+        .collect::<Vec<Harmonic>>();
     for sample_number in 0..data.num_samples {
         let t = sample_number as f64 / data.samples_per_sec as f64;
 
-        let harmonics_tones = note.sample_at(t);
+        let mut harmonics_tones = note.sample_at(t);
+        //let mut harmonics_tones = vec![];
+
+        frequencies
+            .iter()
+            .for_each(|note_n| harmonics_tones.extend(note_n.sample_at(t)));
 
         let value = data.add_tones_u8(&harmonics_tones);
         bytes.extend(value.to_le_bytes());
