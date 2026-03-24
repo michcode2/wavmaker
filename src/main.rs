@@ -10,7 +10,7 @@ use std::{f64, io::Write};
 mod functions;
 
 fn main() {
-    let duration = 20;
+    let duration = 6;
     let per_sec = 44100;
 
     let data = WavFile {
@@ -19,106 +19,30 @@ fn main() {
         num_samples: per_sec * duration,
     };
 
-    let on_length = 0.5;
-
-    let a = Tone::new(
-        Constant::new(220.0),
-        OnOff::new(vec![0.0], vec![on_length], Box::new(Constant::new(0.75))),
-    );
-
-    let b = Tone::new(
-        Constant::new(249.93),
-        OnOff::new(
-            vec![on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-    let c = Tone::new(
-        Constant::new(261.63),
-        OnOff::new(
-            vec![2.0 * on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-
-    let d = Tone::new(
-        Constant::new(293.66),
-        OnOff::new(
-            vec![3.0 * on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-
-    let e = Tone::new(
-        Constant::new(329.63),
-        OnOff::new(
-            vec![4.0 * on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-    let f = Tone::new(
-        Constant::new(349.23),
-        OnOff::new(
-            vec![5.0 * on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-    let g = Tone::new(
-        Constant::new(392.0),
-        OnOff::new(
-            vec![6.0 * on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-    let a2 = Tone::new(
-        Constant::new(440.0),
-        OnOff::new(
-            vec![7.0 * on_length],
-            vec![on_length],
-            Box::new(Constant::new(0.75)),
-        ),
-    );
-
-    let constant = Tone::new(
-        Linear::new_all(0.0, 8.0 * on_length, (220.0) / (8.5 * on_length), 220.0),
-        Constant::new(0.25),
-    );
-
-    let frequencies = vec![a, b, c, d, e, f, g, a2, constant];
-
     let mut bytes = data.create_header();
 
     let harmonic_frequency =
-        |fundimental: f64, harmonic_number: u8| fundimental * harmonic_number as f64;
+        |fundimental: f64, harmonic_number: u8| fundimental * (harmonic_number as f64);
 
-    let harmonic_volume = |harmonic_number: u8| 1.0 / harmonic_number as f64;
+    let harmonic_volume = |harmonic_number: u8| {
+        let h = harmonic_number as f64;
+        (-0.5 * h).exp() * h.powi(2) / 2.5
+    };
 
     let note = Harmonic::new(
-        Constant::new(440.0),
-        Fade::new(1.0, vec![8.0 * on_length, 9.0 * on_length], 1.0),
+        Constant::new(110.0),
+        Fade::new(10.0, vec![0.5], 1.0),
         harmonic_frequency,
         harmonic_volume,
-        3,
+        5,
     );
 
     for sample_number in 0..data.num_samples {
         let t = sample_number as f64 / data.samples_per_sec as f64;
-        let mut thingies = frequencies
-            .iter()
-            .map(|f| f.sample_at(t))
-            .collect::<Vec<f64>>();
 
-        let mut harmonics_tones = note.sample_at(t);
+        let harmonics_tones = note.sample_at(t);
 
-        thingies.append(&mut harmonics_tones);
-
-        let value = data.add_tones_u8(&thingies);
+        let value = data.add_tones_u8(&harmonics_tones);
         bytes.extend(value.to_le_bytes());
     }
 
@@ -165,7 +89,7 @@ impl Harmonic {
             Constant::new(fundimental_volume),
         )];
 
-        for harmonic_number in 1..self.num_harmonics {
+        for harmonic_number in 1..=self.num_harmonics {
             let frequency = (self.harmonic_frequency)(fundimental_frequency, harmonic_number);
             let volume = (self.harmonic_volume)(harmonic_number) * fundimental_volume;
             let this_tone = Tone::new(Constant::new(frequency), Constant::new(volume));
