@@ -10,8 +10,8 @@ use std::{f64, io::Write};
 mod functions;
 
 fn main() {
-    let duration = 6;
-    let per_sec = 44100;
+    let duration = 60;
+    let per_sec = 4400;
 
     let data = WavFile {
         samples_per_sec: per_sec,
@@ -22,19 +22,17 @@ fn main() {
     let mut bytes = data.create_header();
 
     let harmonic_frequency =
-        |fundimental: f64, harmonic_number: u8| fundimental * (harmonic_number as f64);
+        |fundimental: f64, harmonic_number: u8| 2.01 * fundimental * (harmonic_number as f64);
 
-    let harmonic_volume = |harmonic_number: u8| {
-        let h = harmonic_number as f64;
-        (-0.5 * h).exp() * h.powi(2) / 2.5
-    };
+    let harmonic_volume = |harmonic_number: u8| (-(harmonic_number as f64)).exp();
 
     let note = Harmonic::new(
-        Constant::new(110.0),
-        Fade::new(10.0, vec![0.5], 1.0),
+        Fade::new(0.5, vec![0.5], 440.0),
+        //Fade::new(2.0, vec![0.4, 0.5], 1.0),
+        Constant::new(0.5),
         harmonic_frequency,
         harmonic_volume,
-        5,
+        50,
     );
 
     for sample_number in 0..data.num_samples {
@@ -89,7 +87,7 @@ impl Harmonic {
             Constant::new(fundimental_volume),
         )];
 
-        for harmonic_number in 1..=self.num_harmonics {
+        for harmonic_number in 2..=self.num_harmonics {
             let frequency = (self.harmonic_frequency)(fundimental_frequency, harmonic_number);
             let volume = (self.harmonic_volume)(harmonic_number) * fundimental_volume;
             let this_tone = Tone::new(Constant::new(frequency), Constant::new(volume));
